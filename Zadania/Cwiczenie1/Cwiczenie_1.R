@@ -1,6 +1,7 @@
 #zadanie1
 library(tidyverse)
 library(GGally)
+library(broom)
 
 colnames(airquality) <- tolower(colnames(airquality)) #zmiana nazwy kolumn na małe litery
 
@@ -15,7 +16,18 @@ View(air) # wyświetlenie tabeli
 
 glimpse(air) #struktura danych
 
-GGally::ggpairs(air, aes(color = month)) #Sprawdzanie korelacji między zmiennymi
+GGally::ggpairs(air, aes(color = month)) #Sprawdzanie korelacji między zmiennymi/wizualizacja dancyh
 
-model <- lm(ozone ~ solar.r + wind + temp + month, data = air) #model regresji liniowej
+# Skalowanie zmiennych ilościowych
+air_scaled <- air |> 
+  mutate(across(c(temp, wind, solar.r), scale))  # Skalowanie zmiennych temp, wind, solar.r
+
+head(air_scaled)
+
+model <- lm(ozone ~ solar.r + wind + temp + month, data = air_scaled) #model regresji liniowej bez uwzględnienia  interakcji między zmiennymi
 summary(model) #podsiumowanie modelu
+
+model_tidy <- tidy(model, conf.int = TRUE) #konwersja wyniku modelu na czytelny format
+
+predictions <- predict(model, newdata = air_scaled)#predykcja
+head(predictions)
