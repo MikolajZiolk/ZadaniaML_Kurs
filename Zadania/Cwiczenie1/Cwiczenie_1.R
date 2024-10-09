@@ -28,3 +28,6 @@ model <- lm(ozone ~ solar.r + wind + temp + month, data = air_scaled) #model reg
 summary(model) #podsiumowanie modelu
 
 model_tidy <- tidy(model, conf.int = TRUE) #konwersja wyniku modelu na czytelny format
+
+predictions <- predict(model, newdata = air_scaled)#predykcja
+head(predictions)
