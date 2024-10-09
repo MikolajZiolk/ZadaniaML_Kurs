@@ -1,6 +1,7 @@
 #zadanie1
 library(tidyverse)
 library(GGally)
+library(broom)
 
 colnames(airquality) <- tolower(colnames(airquality)) #zmiana nazwy kolumn na małe litery
 
@@ -17,5 +18,9 @@ glimpse(air) #struktura danych
 
 GGally::ggpairs(air, aes(color = month)) #Sprawdzanie korelacji między zmiennymi
 
-model <- lm(ozone ~ solar.r + wind + temp + month, data = air) #model regresji liniowej
+model <- lm(ozone ~ solar.r + wind + temp + month, data = air) #model regresji liniowej bez uwzględnienia  interakcji między zmiennymi
 summary(model) #podsiumowanie modelu
+
+model_tidy <- tidy(model, conf.int = TRUE) #konwersja wyniku modelu na czytelny format
+
+
