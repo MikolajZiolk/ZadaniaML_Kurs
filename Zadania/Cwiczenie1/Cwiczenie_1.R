@@ -13,4 +13,9 @@ air <-
 
 View(air) # wyświetlenie tabeli
 
-glimpse(air) 
+glimpse(air) #struktura danych
+
+GGally::ggpairs(air, aes(color = month)) #Sprawdzanie korelacji między zmiennymi
+
+model <- lm(ozone ~ solar.r + wind + temp + month, data = air) #model regresji liniowej
+summary(model) #podsiumowanie modelu
