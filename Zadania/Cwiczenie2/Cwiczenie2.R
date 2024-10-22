@@ -57,4 +57,26 @@ data_split <- initial_split(air, prop = 0.75, strata = ozone)
 train_data <- training(data_split)
 test_data <- testing(data_split)
 
+# Tworzenie receptury
+oz_rec <- 
+  recipe(ozone ~ ., data = train_data) |>
+  update_role(o3, wd, date, pm10, pm25, so2, co, no2, new_role = "ID") |> 
+  step_BoxCox(ws, nox, no2) |>
+  step_date(date, features = c("month")) |> 
+  step_time(date, features = c("hour")) |> 
+  step_mutate(date_hour = as.factor(date_hour)) |>  
+  step_dummy(all_nominal_predictors()) |>  # Tworzenie zmiennych fikcyjnych
+  step_zv() #usunie kolumny z danych, gdy dane zestawu szkoleniowego mają pojedynczą wartość,
+
+
+oz_rec |> summary()
+
+
+
+
+
+
+
+
+
 
