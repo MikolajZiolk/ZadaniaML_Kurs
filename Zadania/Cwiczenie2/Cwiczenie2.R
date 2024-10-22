@@ -7,11 +7,9 @@ library(openair)
 tidymodels_prefer()
 
 
-air <- mydata |> selectByDate(year = 2002) 
+air <- mydata |> selectByDate(year = 2002) |> na.omit()
 air |> skim()
 str(air)
-
-air <- air |> na.omit() #pominięcie pusty danych
 
 set.seed(222)
 air[sample(1:nrow(air), size = 300, replace = F),] |> 
@@ -30,9 +28,33 @@ air[sample(1:nrow(air), size = 300, replace = F),] |>
   stat_regline_equation(label.x = 10, label.y = 82) +
   theme_bw()
 
-
 air |>    
   ggplot(aes(date, o3)) +     
   geom_line() +     
   theme_bw()
+
+# Podgląd zakresu wartości ozonu
+air |> 
+  pull(o3) |> 
+  range()  
+
+# Tworzenie zmiennej jakościowej 'ozone' 
+air <-
+  air |>
+  mutate(ozone = cut(
+    o3,
+    breaks = c(-0.1, 10, 53),
+    labels = c("Niskie", "Wysokie")
+  ))
+
+air |> count(ozone)
+
+
+############################
+#podział na zbiór trenigowy i testowy
+set.seed(222)
+data_split <- initial_split(air, prop = 0.75, strata = ozone)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
 
