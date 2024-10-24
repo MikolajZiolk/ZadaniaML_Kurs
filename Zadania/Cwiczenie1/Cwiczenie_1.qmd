@@ -11,7 +11,6 @@ format:
     toc-title: Spis Treści
     number-sections: true
     number-depth: 3
-    embed-resources: true
     html-math-method: katex
     code-tools: true
     code-block-bg: true
@@ -21,7 +20,6 @@ format:
     link-external-newwindow: true
     smooth-scroll: true
     self-contained: true
-    citation: true
     theme: 
         dark: solar
         light: flatly
@@ -36,6 +34,7 @@ execute:
 ---
 
 ## Bilioteki
+
 ```{r}
 library(tidyverse)
 library(GGally)
@@ -43,10 +42,11 @@ library(broom)
 ```
 
 ## Format danych
-- zmiana nazw kolumn na małe litery
-- usunięcie wierszy z brakami danych
-- usuniecie kolumny "day"
-- konwersja kolumny month na typ fakor
+
+-   zmiana nazw kolumn na małe litery
+-   usunięcie wierszy z brakami danych
+-   usuniecie kolumny "day"
+-   konwersja kolumny month na typ fakor
 
 ```{r}
 
@@ -63,7 +63,7 @@ air <-
 ## Tabela z danymi
 
 ::: callout-note
- Tabela przedstawia pierwsze 15 wierszy danych. Całkowita liczba wierszy to 111.
+Tabela przedstawia pierwsze 15 wierszy danych. Całkowita liczba wierszy to 111.
 :::
 
 ```{r}
@@ -80,16 +80,16 @@ GGally::ggpairs(air, aes(color = month))
 ```
 
 ### Wniosek
+
 Z wykresów widać, iż między niektórymi zmiennymi występuje silna korelacja. Na przykład, zmienna temp jest silnie skorelowana z poziomem ozonu (wsp. 0.699)
 
-Umiarkowanie wysokie korelacje między temp-ozone, wind-ozone, solar.r-ozone, temp-solar.r,
-wind-temp
+Umiarkowanie wysokie korelacje między temp-ozone, wind-ozone, solar.r-ozone, temp-solar.r, wind-temp
 
 Niskie korelacjie między parami: wind-solar.r, solar.r-temp
 
 ## Skalowanie zmiennych
 
-Modyfikuje 3 kolumny  temp, wind oraz solar.r, a mianowicie dokonywana jest standaryzacja za pomocą kodu
+Modyfikuje 3 kolumny temp, wind oraz solar.r, a mianowicie dokonywana jest standaryzacja za pomocą kodu
 
 ```{r}
 air_scaled <- air |> 
@@ -100,17 +100,22 @@ head(air_scaled)
 
 ## Model regresji
 
+Lepszy model 
+
 ```{r}
-model <- lm(ozone ~ solar.r + wind + temp + month, data = air_scaled) 
+model <- lm(ozone ~ solar.r + wind * temp, data = air_scaled) 
 summary(model) 
 
 ```
-- (wyraz wolny): Przewidywana wartość ozonu, gdy wszystkie inne zmienne mają wartość 0, wynosi 50.386 jednostek.
-- solar.r: Każdy wzrost promieniowania słonecznego (solar.r) o jednostkę powoduje wzrost poziomu ozonu o 4.76 jednostek (p = 0.0296, więc efekt jest istotny statystycznie).
-- wind: Każdy wzrost prędkości wiatru (wind) o jednostkę powoduje spadek poziomu ozonu o 11.06 jednostek (p < 0.001, bardzo istotny efekt).
-- temp: Każdy wzrost temperatury o jednostkę powoduje wzrost poziomu ozonu o 17.87 jednostek (p < 0.001, bardzo istotny efekt).
+
+-   (wyraz wolny): Przewidywana wartość ozonu, gdy wszystkie inne zmienne mają wartość 0, wynosi 50.386 jednostek.
+-   solar.r: Każdy wzrost promieniowania słonecznego (solar.r) o jednostkę powoduje wzrost poziomu ozonu o 4.76 jednostek (p = 0.0296, więc efekt jest istotny statystycznie).
+-   wind: Każdy wzrost prędkości wiatru (wind) o jednostkę powoduje spadek poziomu ozonu o 11.06 jednostek (p \< 0.001, bardzo istotny efekt).
+-   temp: Każdy wzrost temperatury o jednostkę powoduje wzrost poziomu ozonu o 17.87 jednostek (p \< 0.001, bardzo istotny efekt).
 
 zmienne month6, month7, month8 nie są istotne statystycznie, można rozważać ich usunięcie z modelu
+
+Zdecydowanie, a nie rozważyć :) 
 
 ## Prognoza
 
@@ -119,5 +124,7 @@ model_tidy <- tidy(model, conf.int = TRUE)
 
 predictions <- predict(model, newdata = air_scaled)
 head(predictions, 15)
-
 ```
+
+A ocena modelu, dla każdego miesiąca ? Ma to znaczenie, czy nie w naszym modelu ?
+

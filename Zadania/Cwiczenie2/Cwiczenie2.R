@@ -1,4 +1,7 @@
 #Cwiczenie2
+
+# dlaczego nie jest qmd :(
+
 library(tidymodels) 
 library(skimr) 
 library(GGally)
@@ -58,6 +61,8 @@ train_data <- training(data_split)
 test_data <- testing(data_split)
 
 # Tworzenie receptury
+# wygląda dobrze
+
 oz_rec <- 
   recipe(ozone ~ ., data = train_data) |>
   update_role(o3, wd, date, pm10, pm25, so2, co, no2, new_role = "ID") |> 
@@ -71,7 +76,7 @@ oz_rec <-
 
 oz_rec |> summary()
 
-
+Nie skończone, brak modelu, wniosków itd...
 
 
 
