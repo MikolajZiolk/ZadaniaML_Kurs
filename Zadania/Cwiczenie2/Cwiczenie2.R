@@ -49,8 +49,6 @@ air <-
 
 air |> count(ozone)
 
-
-############################
 #podział na zbiór trenigowy i testowy
 set.seed(222)
 data_split <- initial_split(air, prop = 0.75, strata = ozone)
@@ -62,19 +60,20 @@ oz_rec <-
   recipe(ozone ~ ., data = train_data) |>
   update_role(o3, wd, date, pm10, pm25, so2, co, no2, new_role = "ID") |> 
   step_BoxCox(ws, nox, no2) |>
-  step_date(date, features = c("month")) |> 
+  step_date(date, features = c("month")) |> #kolumna jakościowa
   step_time(date, features = c("hour")) |> 
   step_mutate(date_hour = as.factor(date_hour)) |>  
   step_dummy(all_nominal_predictors()) |>  # Tworzenie zmiennych fikcyjnych
   step_zv() #usunie kolumny z danych, gdy dane zestawu szkoleniowego mają pojedynczą wartość,
 
-
 oz_rec |> summary()
 
+oz_rec |>  ##??????
+  prep()
 
-
-
-
+lr_mod <-
+  logistic_reg() |> 
+  set_engine("glm")
 
 
 
