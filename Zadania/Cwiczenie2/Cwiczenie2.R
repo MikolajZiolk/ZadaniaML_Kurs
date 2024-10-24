@@ -75,6 +75,12 @@ lr_mod <-
   logistic_reg() |> 
   set_engine("glm")
 
+logi_work <- 
+  workflow() |> 
+  add_model(lr_mod) |> 
+  add_recipe(oz_rec)
+
+logi_work
 
 
 
