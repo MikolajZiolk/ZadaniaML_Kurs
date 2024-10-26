@@ -88,5 +88,9 @@ logi_fit <-
 
 oz_rec |> summary()
 
+logi_fit |> 
+  extract_fit_parsnip() |> 
+  extract_recipe() |> 
+    tidy()
 
 
