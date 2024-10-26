@@ -1,6 +1,7 @@
 # QUarto renderowanie
 /.quarto/
 *.html
+*.Rproj
 
 
 
