@@ -82,6 +82,11 @@ logi_work <-
 
 logi_work
 
+logi_fit <-
+  logi_work |> 
+  fit(data =train_data)
+
+oz_rec |> summary()
 
 
 
