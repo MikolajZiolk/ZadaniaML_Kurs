@@ -75,13 +75,47 @@ lr_mod <-
   logistic_reg() |> 
   set_engine("glm")
 
-logi_work <- 
+oz_work <- 
   workflow() |> 
   add_model(lr_mod) |> 
   add_recipe(oz_rec)
 
-logi_work
+oz_work
 
+oz_fit <-
+  oz_work |> 
+  fit(data =train_data)
 
+oz_rec |> summary()
+
+oz_fit |> 
+  extract_fit_parsnip() |> 
+  tidy() |> 
+  mutate(coef_stars = signif_stars(p.value)) #istotność
+
+predict(oz_fit, test_data)
+predict(oz_fit, test_data, type="prob")
+
+pred_test <- 
+  augment(oz_fit, test_data) |>
+  select(-ws,
+         -wd,
+         -nox,
+         -o3,
+         -nox,
+         -no2,
+         -pm10,
+         -pm25,
+         -so2,
+         -co,
+         -date)
+pred_test
+
+pred_test |> 
+  roc_curve(truth = ozone, .pred_Niskie) |> 
+  autoplot()
+
+pred_test |> 
+  roc_auc(truth = ozone, .pred_Niskie)
 
 
