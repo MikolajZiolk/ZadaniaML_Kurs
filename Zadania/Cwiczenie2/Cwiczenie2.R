@@ -115,5 +115,7 @@ pred_test |>
   roc_curve(truth = ozone, .pred_Niskie) |> 
   autoplot()
 
+pred_test |> 
+  roc_auc(truth = ozone, .pred_Niskie)
 
 
