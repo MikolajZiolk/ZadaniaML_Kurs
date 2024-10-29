@@ -1,23 +1,71 @@
-#Cwiczenie2
+---
+title: "Zadanie2"
+date: today
+author: "Mikołaj Ziółkowski"
+editor: visual
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    toc-title: Spis Treści
+    number-sections: true
+    number-depth: 3
+    embed-resources: true
+    html-math-method: katex
+    code-tools: true
+    code-block-bg: true
+    code-fold: true
+    code-summary: "Show and hide code"
+    link-external-icon: true
+    link-external-newwindow: true
+    smooth-scroll: true
+    self-contained: true
+    citation: true
+    theme: 
+        dark: solar
+        light: flatly
+    fontsize: 1.0em
+    linestretch: 1.3
+    fig-align: center
+execute: 
+  echo: true
+  error: false
+  warning: false
+  output: true
+---
+
+## Bilioteki
+```{r}
 library(tidymodels) 
 library(skimr) 
 library(GGally)
 library(ggpubr)
 library(openair) 
 tidymodels_prefer()
+```
 
+## Zadanie2
 
+Wybieram jeden rok z danych i usuwam brakujące dane.
+
+```{r}
 air <- mydata |> selectByDate(year = 2002) |> na.omit()
 air |> skim()
 
+```
+### Współczynnik korelacji:
 
+```{r}
 set.seed(222)
 air[sample(1:nrow(air), size = 300, replace = F),] |> 
   select(nox, no2) |> 
   ggpairs()
+```
 
+### Wykres regresji liniowej:
 
-# wykres regresji liniowej, do sprawdzenia danych 
+```{r}
 set.seed(222)
 air[sample(1:nrow(air), size = 300, replace = F),] |> 
   select(nox, no2) |> 
@@ -27,18 +75,30 @@ air[sample(1:nrow(air), size = 300, replace = F),] |>
   stat_cor(label.x = 10, label.y = 80) + 
   stat_regline_equation(label.x = 10, label.y = 82) +
   theme_bw()
+```
 
+Nox i no2 są mocno skorelowane
+
+### Stężenia azotu:
+
+```{r}
 air |>    
   ggplot(aes(date, o3)) +     
   geom_line() +     
   theme_bw()
+```
 
-# Podgląd zakresu wartości ozonu
+### Zakres danych:
+
+```{r}
 air |> 
   pull(o3) |> 
-  range()  
+  range() 
+```
 
-# Tworzenie zmiennej jakościowej 'ozone' 
+### Przekształcenie zmiennej ilościowej na jakościową:
+
+```{r}
 air <-
   air |>
   mutate(ozone = cut(
@@ -48,32 +108,49 @@ air <-
   ))
 
 air |> count(ozone)
+```
 
-#podział na zbiór trenigowy i testowy
+### Podział danych na zbiór testowy i treningowy:
+
+```{r}
 set.seed(222)
 data_split <-initial_split(air, prop = 0.75, strata = ozone)
 train_data <- training(data_split)
 test_data <- testing(data_split)
+```
 
-# Tworzenie receptury
+### Przygotowanie receptury:
+
+```{r}
 oz_rec <- 
   recipe(ozone ~ ., data = train_data) |>
   update_role(o3, wd, date, pm10, pm25, so2, co, no2, new_role = "ID") |> 
   step_BoxCox(ws, nox, no2) |>
-  step_date(date, features = c("month")) |> #kolumna jakościowa
+  step_date(date, features = c("month")) |>
   step_time(date, features = c("hour")) |> 
   step_mutate(date_hour = as.factor(date_hour)) |>  
-  step_dummy(all_nominal_predictors()) |>  # Tworzenie zmiennych fikcyjnych
-  step_zv() #usunie kolumny z danych, gdy dane zestawu szkoleniowego mają pojedynczą wartość,
+  step_dummy(all_nominal_predictors()) |>
+  step_zv()
 
 oz_rec |> summary()
+```
 
-oz_rec |>  ##??????
+```{r}
+oz_rec |>
   prep()
+```
 
+### Zdefiniowanie modelu:
+
+```{r}
 lr_mod <-
   logistic_reg() |> 
   set_engine("glm")
+```
+
+### Stworzenie workflow:
+
+```{r}
 
 oz_work <- 
   workflow() |> 
@@ -81,21 +158,34 @@ oz_work <-
   add_recipe(oz_rec)
 
 oz_work
+```
 
+### Dopasowanie danych:
+
+```{r}
 oz_fit <-
   oz_work |> 
   fit(data =train_data)
+```
 
-oz_rec |> summary()
+### testowanie dopasowania:
 
+```{r}
 oz_fit |> 
   extract_fit_parsnip() |> 
   tidy() |> 
-  mutate(coef_stars = signif_stars(p.value)) #istotność
+  mutate(coef_stars = signif_stars(p.value))
+```
 
+### Przewidywanie:
+
+```{r}
 predict(oz_fit, test_data)
 predict(oz_fit, test_data, type="prob")
+```
 
+### 
+```{r}
 pred_test <- 
   augment(oz_fit, test_data) |>
   select(-ws,
@@ -110,12 +200,15 @@ pred_test <-
          -co,
          -date)
 pred_test
+```
 
+### Krzywa ROC
+
+```{r}
 pred_test |> 
   roc_curve(truth = ozone, .pred_Niskie) |> 
   autoplot()
 
 pred_test |> 
   roc_auc(truth = ozone, .pred_Niskie)
-
-
+```
