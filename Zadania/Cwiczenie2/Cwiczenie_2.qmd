@@ -134,6 +134,8 @@ oz_rec <-
 
 oz_rec |> summary()
 ```
+Rola no2 i nox. Zmienne te są mocno skorelowane, więc ograniczam użycie jednej z nich jako predykatora, aby polepszyć stabilność modelu.
+Przekształcenie Box-Cox powoduje, iż dodatkowa normalizacja nie jest konieczna.
 
 ```{r}
 oz_rec |>
@@ -184,7 +186,8 @@ predict(oz_fit, test_data)
 predict(oz_fit, test_data, type="prob")
 ```
 
-### 
+### Połączenie ozone_fit z test_data
+
 ```{r}
 pred_test <- 
   augment(oz_fit, test_data) |>
@@ -212,3 +215,5 @@ pred_test |>
 pred_test |> 
   roc_auc(truth = ozone, .pred_Niskie)
 ```
+
+Model regrsji logistycznej osiągnął wysoką wartość roc_auc, co sugeruje, że model dobrze rozróżnia klasy Niskie i Wysokie dla poziomu ozonu.
