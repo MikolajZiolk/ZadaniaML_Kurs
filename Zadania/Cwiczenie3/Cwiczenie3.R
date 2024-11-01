@@ -57,7 +57,7 @@ test_data <- testing(data_split)
 
 #rsmaple - CV folds
 set.seed(345)
-folds <- vfold_cv(data = train_data, v =10)
+cv_folds <- vfold_cv(data = train_data, v =10)
 
 #parsnip - model
 rf_mod <-
@@ -65,12 +65,17 @@ rf_mod <-
   set_engine("ranger") |> 
   set_mode("classification")
 
-folds
 
 rf_workflow <-
   workflow() |> 
   add_model(rf_mod) |> 
-  add_formula(class ~ .)
+  add_recipe(oz_rec)
+
+#tune 
+set.seed(456)
+rf_fit_rs <-
+  rf_workflow |> 
+  fit_resamples(cv_folds)
 
 # Tworzenie receptury
 oz_rec <- 
