@@ -55,6 +55,19 @@ data_split <-initial_split(air, prop = 0.75, strata = ozone)
 train_data <- training(data_split)
 test_data <- testing(data_split)
 
+#rsmaple - CV folds
+set.seed(345)
+folds <- vfold_cv(data = train_data, v =10)
+
+#parsnip - model
+rf_mod <-
+  rand_forest() |> 
+  set_engine("ranger") |> 
+  set_mode("classification")
+
+folds
+
+
 # Tworzenie receptury
 oz_rec <- 
   recipe(ozone ~ ., data = train_data) |>
