@@ -67,6 +67,10 @@ rf_mod <-
 
 folds
 
+rf_workflow <-
+  workflow() |> 
+  add_model(rf_mod) |> 
+  add_formula(class ~ .)
 
 # Tworzenie receptury
 oz_rec <- 
