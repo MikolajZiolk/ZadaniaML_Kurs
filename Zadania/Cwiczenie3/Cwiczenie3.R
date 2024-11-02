@@ -3,7 +3,10 @@ library(tidymodels)
 library(skimr) 
 library(GGally)
 library(ggpubr)
+library(dplyr)
 library(openair) 
+library(DT)
+library(ranger)
 tidymodels_prefer()
 
 
@@ -55,6 +58,13 @@ data_split <-initial_split(air, prop = 0.75, strata = ozone)
 train_data <- training(data_split)
 test_data <- testing(data_split)
 
+#rsmaple - CV folds
+set.seed(345)
+cv_folds <- vfold_cv(data = train_data, v =10)
+cv_folds_r5 <- vfold_cv(data=train_data, v=10, repeats = 5)
+bootstrap_folds <- bootstraps(data=train_data, times=5)
+
+
 # Tworzenie receptury
 oz_rec <- 
   recipe(ozone ~ ., data = train_data) |>
@@ -71,7 +81,7 @@ oz_rec |> summary()
 oz_rec |>  ##??????
   prep()
 
-#modele
+#modele bez resample
 lr_mod <-
   logistic_reg() |> 
   set_engine("glm")
@@ -93,9 +103,11 @@ oz_fit |>
   tidy() |> 
   mutate(coef_stars = signif_stars(p.value)) #istotność
 
+#przewidywanie bez resample
 predict(oz_fit, test_data)
 predict(oz_fit, test_data, type="prob")
 
+#połączenie oz_fit z test_data
 pred_test <- 
   augment(oz_fit, test_data) |>
   select(-ws,
@@ -111,6 +123,7 @@ pred_test <-
          -date)
 pred_test
 
+#Krzywa ROC
 pred_test |> 
   roc_curve(truth = ozone, .pred_Niskie) |> 
   autoplot()
@@ -119,10 +132,6 @@ pred_test |>
   roc_auc(truth = ozone, .pred_Niskie)
 
 #####################RSAMPLE _CV_FOLDS##################
-
-#rsmaple - CV folds
-set.seed(345)
-cv_folds <- vfold_cv(data = train_data, v =10)
 
 #parsnip - model
 rf_mod <-
@@ -141,6 +150,11 @@ rf_fit_rs <-
   rf_workflow |> 
   fit_resamples(cv_folds)
 
+# tune lr
+lr_fit_rs <-
+  oz_work |> 
+  fit_resamples(cv_folds)
+
 #rozdzxielenie wartosci
 rf_fit_rs |> 
   collect_metrics() |> 
@@ -155,3 +169,20 @@ metrics_without_resample <- bind_rows(
     accuracy(truth = ozone, .pred_class)
 ) |>
   knitr::kable(digits = 3)
+
+#metryki z resample
+#lr
+metrics_lr_cv_folds <- lr_fit_rs |> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "lr_cv_folds")
+#rf
+metrics_rf_cv_folds <- rf_fit_rs|> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "rf_cv_folds")
+
+all_metrics <- bind_rows(
+  metrics_lr_cv_folds,
+  metrics_rf_cv_folds
+)
