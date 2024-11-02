@@ -55,28 +55,6 @@ data_split <-initial_split(air, prop = 0.75, strata = ozone)
 train_data <- training(data_split)
 test_data <- testing(data_split)
 
-#rsmaple - CV folds
-set.seed(345)
-cv_folds <- vfold_cv(data = train_data, v =10)
-
-#parsnip - model
-rf_mod <-
-  rand_forest() |> 
-  set_engine("ranger") |> 
-  set_mode("classification")
-
-
-rf_workflow <-
-  workflow() |> 
-  add_model(rf_mod) |> 
-  add_recipe(oz_rec)
-
-#tune 
-set.seed(456)
-rf_fit_rs <-
-  rf_workflow |> 
-  fit_resamples(cv_folds)
-
 # Tworzenie receptury
 oz_rec <- 
   recipe(ozone ~ ., data = train_data) |>
@@ -93,16 +71,16 @@ oz_rec |> summary()
 oz_rec |>  ##??????
   prep()
 
+#modele
 lr_mod <-
   logistic_reg() |> 
   set_engine("glm")
 
+#workflow
 oz_work <- 
   workflow() |> 
   add_model(lr_mod) |> 
   add_recipe(oz_rec)
-
-oz_work
 
 oz_fit <-
   oz_work |> 
@@ -140,4 +118,40 @@ pred_test |>
 pred_test |> 
   roc_auc(truth = ozone, .pred_Niskie)
 
+#####################RSAMPLE _CV_FOLDS##################
 
+#rsmaple - CV folds
+set.seed(345)
+cv_folds <- vfold_cv(data = train_data, v =10)
+
+#parsnip - model
+rf_mod <-
+  rand_forest() |> 
+  set_engine("ranger") |> 
+  set_mode("classification")
+
+rf_workflow <-
+  workflow() |> 
+  add_model(rf_mod) |> 
+  add_recipe(oz_rec)
+
+#tune 
+set.seed(456)
+rf_fit_rs <-
+  rf_workflow |> 
+  fit_resamples(cv_folds)
+
+#rozdzxielenie wartosci
+rf_fit_rs |> 
+  collect_metrics() |> 
+  knitr::kable(digits = 3)
+
+#metryki bez resample
+metrics_without_resample <- bind_rows(
+  pred_test |>
+    roc_auc(truth = ozone, .pred_Niskie),
+  
+  pred_test |>
+    accuracy(truth = ozone, .pred_class)
+) |>
+  knitr::kable(digits = 3)
