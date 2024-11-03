@@ -138,6 +138,19 @@ rf_tune_fit |>
 #Wyświetlenie najlepszych wyników
 rf_tune_fit |> show_best(metric="accuracy")
 
+rf_tune_fit |> select_best(metric="accuracy")
+
+## stworzenie najlepiej pasującego modelu
+best_mod <- rf_tune_fit |> select_best(metric="accuracy")
+
+final_mod <-  
+  tune_work |> 
+  finalize_workflow(best_mod)
+
+#Dopasowanie ostatecznego modelu do danych uczących
+#i oszacowanie wydajności modelu
+
+
 #parsnip - model, rf, bez tuningu
 rf_mod <-
   rand_forest() |> 
