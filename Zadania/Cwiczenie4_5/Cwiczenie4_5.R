@@ -50,7 +50,7 @@ test_data <- testing(data_split)
 
 #rsmaple - CV folds, bootstrap
 set.seed(345)
-cv_folds <- vfold_cv(data = train_data, v =10)
+cv_folds <- vfold_cv(data = train_data)
 cv_folds_r5 <- vfold_cv(data=train_data, v=10, repeats = 5)
 bootstrap_folds <- bootstraps(data=train_data, times=5)
 
@@ -92,6 +92,12 @@ reg_grid  <- grid_regular(
   levels=5)
 
 reg_grid
+# podgląd parametrów 
+reg_grid |> 
+  count(mtry)
+
+reg_grid |> 
+  count(min_n)
 
 ### Tune Workflow
 tune_work  <- 
@@ -99,7 +105,7 @@ tune_work  <-
   add_model(tune_spec) |> 
   add_recipe(oz_rec)
 
-### dopasowanie modelu tunning
+# statystyki oceny dokładnosci modelu 
 set.seed(345)
 ex_metrics  <- 
   yardstick::metric_set(
@@ -116,6 +122,22 @@ rf_tune_fit <-
             control = control_grid(save_pred = T),
             metrics = ex_metrics)
 rf_tune_fit
+
+rf_tune_fit |> collect_metrics()
+
+rf_tune_fit |> 
+  collect_metrics() |> 
+  mutate(mtry = factor(mtry)) |> 
+  ggplot(aes(min_n, mean, color = mtry)) +
+  geom_line(linewidth = 1.5, alpha = 0.6) +
+  geom_point(size = 2) +
+  facet_wrap(~ .metric, scales = "free", nrow = 2) +
+  scale_x_log10(labels = scales::label_number()) +
+  scale_color_viridis_d(option = "plasma", begin = .9, end = 0)
+
+#Wyświetlenie najlepszych wyników
+rf_tune_fit |> show_best(metric="accuracy")
+
 #parsnip - model, rf, bez tuningu
 rf_mod <-
   rand_forest() |> 
