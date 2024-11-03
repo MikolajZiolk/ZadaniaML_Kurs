@@ -48,27 +48,9 @@ train_data <- training(data_split)
 test_data <- testing(data_split)
 
 
-#Dostrojenie hiper-parametrów drzwa decyzyjnego
-#tworzę specyfikacje modelu, która określa, które hiper-parametry dostroić
-
-
-#########################
-tune_spec <-
-  rand_forest(mtry = tune(),
-              min_n = tune(),
-              trees = 1000) |>
-  set_engine(engine = "ranger",
-             num.threads = cores - 1) |>
-  set_mode(mode = "classification")
-
-tune_spec
-
-#########################
-
-
-#rsmaple - CV folds
+#rsmaple - CV folds, bootstrap
 set.seed(345)
-cv_folds <- vfold_cv(data = train_data, v =10)
+cv_folds <- vfold_cv(data = train_data)
 cv_folds_r5 <- vfold_cv(data=train_data, v=10, repeats = 5)
 bootstrap_folds <- bootstraps(data=train_data, times=5)
 
@@ -88,8 +70,119 @@ oz_rec |> summary()
 
 oz_rec |>  ##??????
   prep()
+################################
+#Dostrojenie hiper-parametrów lasu losowego
+#tworzę specyfikacje modelu, która określa, które hiper-parametry dostroić
+#########################
+# zdefiniowanie parametrów lasu losowaego do tune
+tune_spec <-
+  rand_forest(mtry = tune(),
+              min_n = tune(),
+              trees = 1000) |>
+  set_engine(engine = "ranger",
+             num.threads=parallel::detectCores() - 1,
+             importance = "impurity") |>
+  set_mode(mode = "classification")
 
-#modele bez resample
+tune_spec
+extract_parameter_set_dials(tune_spec)
+
+reg_grid  <- grid_regular(
+  mtry(range=c(1,10)),
+  min_n(),
+  levels=5)
+
+reg_grid
+# podgląd parametrów 
+reg_grid |> 
+  count(mtry)
+
+reg_grid |> 
+  count(min_n)
+
+### Tune Workflow
+tune_work  <- 
+  workflow() |> 
+  add_model(tune_spec) |> 
+  add_recipe(oz_rec)
+
+# statystyki oceny dokładnosci modelu 
+set.seed(345)
+ex_metrics  <- 
+  yardstick::metric_set(
+    accuracy,
+    mcc,
+    npv,
+    roc_auc
+  )
+
+rf_tune_fit <- 
+  tune_work |> 
+  tune_grid(resamples = cv_folds, 
+            grid = reg_grid, 
+            control = control_grid(save_pred = T),
+            metrics = ex_metrics)
+rf_tune_fit
+
+rf_tune_fit |> collect_metrics()
+
+rf_tune_fit |> 
+  collect_metrics() |> 
+  mutate(mtry = factor(mtry)) |> 
+  ggplot(aes(min_n, mean, color = mtry)) +
+  geom_line(linewidth = 1.5, alpha = 0.6) +
+  geom_point(size = 2) +
+  facet_wrap(~ .metric, scales = "free", nrow = 2) +
+  scale_x_log10(labels = scales::label_number()) +
+  scale_color_viridis_d(option = "plasma", begin = .9, end = 0)
+
+#Wyświetlenie najlepszych wyników
+rf_tune_fit |> show_best(metric="accuracy")
+
+## stworzenie najlepiej pasującego modelu
+best_mod <- rf_tune_fit |> select_best(metric="accuracy")
+
+final_mod <-  
+  tune_work |> 
+  finalize_workflow(best_mod)
+
+#Dopasowanie ostatecznego modelu do danych uczących
+#i oszacowanie wydajności modelu
+final_fit <- 
+  final_mod |> 
+  last_fit(split = data_split)
+
+final_fit |> 
+  collect_metrics()
+
+final_fit |> 
+  collect_predictions() |> 
+  roc_curve(truth = ozone, .pred_Niskie) |> 
+  autoplot()
+
+#wyodrębienie ostatecznego workflow
+final_fit |> extract_workflow()
+
+
+final_fit |> 
+  extract_workflow() |> 
+  extract_fit_engine() |> 
+  vip()
+########################################
+#parsnip - model, rf, bez tuningu
+rf_mod <-
+  rand_forest() |> 
+  set_engine(engine = "ranger",
+             num.threads = cores - 1) |> 
+  set_mode("classification")
+
+rf_workflow <-
+  workflow() |> 
+  add_model(rf_mod) |> 
+  add_recipe(oz_rec)
+########################################################
+###################modele bez resample##################
+#modele bez resample i tunning
 lr_mod <-
   logistic_reg() |> 
   set_engine("glm")
@@ -138,19 +231,8 @@ pred_test |>
 
 pred_test |> 
   roc_auc(truth = ozone, .pred_Niskie)
-
-#####################RSAMPLE _CV_FOLDS##################
-
-#parsnip - model
-rf_mod <-
-  rand_forest() |> 
-  set_engine("ranger") |> 
-  set_mode("classification")
-
-rf_workflow <-
-  workflow() |> 
-  add_model(rf_mod) |> 
-  add_recipe(oz_rec)
+#########################################################
+#####################RESAMPLE _CV_FOLDS##################
 
 #tune rf
 set.seed(456)
@@ -237,4 +319,4 @@ all_metrics <- bind_rows(
   metrics_rf_vcv_r5,
   metrics_rf_bootstrap
 )
-
+################################################
