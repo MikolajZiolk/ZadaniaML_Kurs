@@ -1,0 +1,329 @@
+---
+title: "Zadanie3"
+date: today
+author: "Mikołaj Ziółkowski"
+editor: visual
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    toc-title: Spis Treści
+    number-sections: true
+    number-depth: 3
+    embed-resources: true
+    html-math-method: katex
+    code-tools: true
+    code-block-bg: true
+    code-fold: true
+    code-summary: "Show and hide code"
+    link-external-icon: true
+    link-external-newwindow: true
+    smooth-scroll: true
+    self-contained: true
+    citation: true
+    theme: 
+        dark: solar
+        light: flatly
+    fontsize: 1.0em
+    linestretch: 1.3
+    fig-align: center
+execute: 
+  eval: true
+  echo: true
+  error: false
+  warning: false
+  output: true
+---
+
+```{=html}
+<style type="text/css"> body {text-align: justify} </style>
+```
+
+# Zadanie 3 , tidymodels
+
+## Biblioteki
+
+```{r}
+library(tidymodels) 
+library(skimr) 
+library(GGally)
+library(ggpubr)
+library(dplyr)
+library(openair) 
+library(DT)
+library(ranger)
+library(kableExtra)
+tidymodels_prefer()
+```
+
+## Przygotowanie danych, wybór po roku i usuniecie wart.odstających
+
+```{r}
+air <- mydata |> selectByDate(year = 2002) |> na.omit()
+air |> skim()
+```
+
+## Wykres regresji liniowej
+
+```{r}
+set.seed(222)
+air[sample(1:nrow(air), size = 300, replace = F),] |> 
+  select(nox, no2) |> 
+  ggplot(aes(nox, no2)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = T, formula = y ~ x) + 
+  stat_cor(label.x = 10, label.y = 80) + 
+  stat_regline_equation(label.x = 10, label.y = 82) +
+  theme_bw()
+```
+
+## Tworzenie zmiennej jakościowej 'ozone' 
+
+```{r}
+air <-
+  air |>
+  mutate(ozone = cut(
+    o3,
+    breaks = c(-0.1, 10, 53),
+    labels = c("Niskie", "Wysokie")
+  ))
+
+air |> count(ozone)
+```
+
+## Podział na zbiór trenigowy i testowy
+
+```{r}
+set.seed(222)
+data_split <-initial_split(air, prop = 0.75, strata = ozone)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+```
+
+## Resampling v-folds CV, r5, bootstrap
+
+```{r}
+set.seed(345)
+cv_folds <- vfold_cv(data = train_data, v =10)
+cv_folds_r5 <- vfold_cv(data=train_data, v=10, repeats = 5)
+bootstrap_folds <- bootstraps(data=train_data, times=5)
+```
+
+# Tworzenie receptury
+
+```{r}
+oz_rec <- 
+  recipe(ozone ~ ., data = train_data) |>
+  update_role(o3, wd, date, pm10, pm25, so2, co, no2, new_role = "ID") |> 
+  step_BoxCox(ws, nox, no2) |>
+  step_date(date, features = c("month")) |>
+  step_time(date, features = c("hour")) |> 
+  step_mutate(date_hour = as.factor(date_hour)) |>  
+  step_dummy(all_nominal_predictors()) |>  
+  step_zv()
+
+oz_rec |> summary()
+```
+### Przygotowanie receptury
+
+```{r}
+oz_rec |>
+  prep() |> 
+  bake(new_data = train_data) |> 
+  head()
+```
+## LR Model bez resample
+
+```{r}
+lr_mod <-
+  logistic_reg() |> 
+  set_engine("glm")
+```
+
+### LR Workflow
+
+```{r}
+oz_work <- 
+  workflow() |> 
+  add_model(lr_mod) |> 
+  add_recipe(oz_rec)
+```
+
+### Dopasowanie LR
+
+```{r}
+oz_fit <-
+  oz_work |> 
+  fit(data =train_data)
+```
+
+```{r}
+oz_fit |> 
+  extract_fit_parsnip() |> 
+  tidy() |> 
+  mutate(coef_stars = signif_stars(p.value)) #istotność
+```
+
+### Przewidywanie bez resample
+
+```{r}
+predict(oz_fit, test_data) |> 
+  head(15)
+predict(oz_fit, test_data, type="prob") |> 
+  head(15)
+```
+### Połączenie oz_fit z test_data
+
+```{r}
+pred_test <- 
+  augment(oz_fit, test_data) |>
+  select(-ws,
+         -wd,
+         -nox,
+         -o3,
+         -nox,
+         -no2,
+         -pm10,
+         -pm25,
+         -so2,
+         -co,
+         -date)
+pred_test
+```
+
+### Krzywa ROC
+
+```{r}
+pred_test |> 
+  roc_curve(truth = ozone, .pred_Niskie) |> 
+  autoplot()
+```
+
+```{r}
+pred_test |> 
+  roc_auc(truth = ozone, .pred_Niskie)
+```
+
+## RF Model z resample
+
+```{r}
+rf_mod <-
+  rand_forest() |> 
+  set_engine("ranger") |> 
+  set_mode("classification")
+```
+
+### RF Workflow
+
+```{r}
+rf_workflow <-
+  workflow() |> 
+  add_model(rf_mod) |> 
+  add_recipe(oz_rec)
+```
+
+### Tune RF
+
+```{r}
+set.seed(456)
+rf_fit_rs <-
+  rf_workflow |> 
+  fit_resamples(cv_folds)
+
+rf_fit_bootstrap <- 
+  rf_workflow |>
+  fit_resamples(bootstrap_folds) 
+
+rf_fit_r5 <- 
+  rf_workflow |> 
+  fit_resamples(cv_folds_r5)
+```
+
+### Tune LR
+
+```{r}
+lr_fit_rs <-
+  oz_work |> 
+  fit_resamples(cv_folds)
+
+lr_fit_bootstrap <- 
+  oz_work |>
+  fit_resamples(bootstrap_folds) 
+
+lr_fit_r5 <- 
+  oz_work |> 
+  fit_resamples(cv_folds_r5)
+```
+
+### Metryki bez resample
+
+```{r}
+metrics_no_resample <- bind_rows(
+  pred_test |>
+    roc_auc(truth = ozone, .pred_Niskie),
+  
+  pred_test |>
+    accuracy(truth = ozone, .pred_class)
+) |>
+  mutate(.approach = "no resampling")
+
+```
+
+### Metryki z resample
+```{r}
+#lr
+metrics_lr_cv_folds <- lr_fit_rs |> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "lr_cv_folds")
+
+metrics_lr_vcv_r5 <- lr_fit_r5|> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "lr_cv_r5")
+
+metrics_lr_bootstrap <- lr_fit_bootstrap|> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "lr_bootstrap")
+
+#rf
+metrics_rf_cv_folds <- rf_fit_rs|> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "rf_cv_folds")
+
+metrics_rf_vcv_r5 <- rf_fit_r5|> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "rf_cv_r5")
+
+metrics_rf_bootstrap <- rf_fit_bootstrap|> 
+  collect_metrics() |> 
+  filter(.metric == "accuracy" | .metric == "roc_auc") |>
+  mutate(.approach = "rf_bootstrap")
+```
+
+## Porównanie metryk
+
+```{r}
+all_metrics <- bind_rows(
+  metrics_without_resample,
+  metrics_lr_cv_folds,
+  metrics_lr_vcv_r5,
+  metrics_lr_bootstrap,
+  metrics_rf_cv_folds,
+  metrics_rf_vcv_r5,
+  metrics_rf_bootstrap
+)
+
+knitr::kable(all_metrics, caption = "Porównanie Metryk", align = "c")
+
+all_metrics %>%
+  knitr::kable(caption = "Porównanie Metryk", align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+
