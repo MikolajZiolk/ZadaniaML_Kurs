@@ -177,14 +177,14 @@ rf_fit_rs |>
   knitr::kable(digits = 3)
 
 #metryki bez resample
-metrics_without_resample <- bind_rows(
+metrics_no_resample <- bind_rows(
   pred_test |>
     roc_auc(truth = ozone, .pred_Niskie),
   
   pred_test |>
     accuracy(truth = ozone, .pred_class)
 ) |>
-  knitr::kable(digits = 3)
+  mutate(.approach = "no resampling")
 
 #metryki
 #lr
@@ -221,7 +221,7 @@ metrics_rf_bootstrap <- rf_fit_bootstrap|>
 
 
 all_metrics <- bind_rows(
-  metrics_without_resample,
+  metrics_no_resample,
   metrics_lr_cv_folds,
   metrics_lr_vcv_r5,
   metrics_lr_bootstrap,
