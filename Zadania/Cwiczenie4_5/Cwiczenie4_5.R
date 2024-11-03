@@ -80,7 +80,8 @@ tune_spec <-
               min_n = tune(),
               trees = 1000) |>
   set_engine(engine = "ranger",
-             num.threads=parallel::detectCores() - 1) |>
+             num.threads=parallel::detectCores() - 1,
+             importance = "impurity") |>
   set_mode(mode = "classification")
 
 tune_spec
@@ -138,8 +139,6 @@ rf_tune_fit |>
 #Wyświetlenie najlepszych wyników
 rf_tune_fit |> show_best(metric="accuracy")
 
-rf_tune_fit |> select_best(metric="accuracy")
-
 ## stworzenie najlepiej pasującego modelu
 best_mod <- rf_tune_fit |> select_best(metric="accuracy")
 
@@ -153,7 +152,7 @@ final_fit <-
   final_mod |> 
   last_fit(split = data_split)
 
-final_fit %>%
+final_fit |> 
   collect_metrics()
 
 final_fit |> 
@@ -161,8 +160,15 @@ final_fit |>
   roc_curve(truth = ozone, .pred_Niskie) |> 
   autoplot()
 
+#wyodrębienie ostatecznego workflow
+final_fit |> extract_workflow()
 
 
+final_fit |> 
+  extract_workflow() |> 
+  extract_fit_engine() |> 
+  vip()
+########################################
 #parsnip - model, rf, bez tuningu
 rf_mod <-
   rand_forest() |> 
@@ -176,7 +182,7 @@ rf_workflow <-
   add_recipe(oz_rec)
 ########################################################
 ###################modele bez resample##################
-#modele bez resample
+#modele bez resample i tunning
 lr_mod <-
   logistic_reg() |> 
   set_engine("glm")
