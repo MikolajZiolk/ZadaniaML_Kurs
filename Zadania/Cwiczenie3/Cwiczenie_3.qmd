@@ -110,7 +110,7 @@ cv_folds_r5 <- vfold_cv(data=train_data, v=10, repeats = 5)
 bootstrap_folds <- bootstraps(data=train_data, times=5)
 ```
 
-# Tworzenie receptury
+### Tworzenie receptury
 
 ```{r}
 oz_rec <- 
@@ -309,7 +309,7 @@ metrics_rf_bootstrap <- rf_fit_bootstrap|>
 
 ```{r}
 all_metrics <- bind_rows(
-  metrics_without_resample,
+  metrics_no_resample,
   metrics_lr_cv_folds,
   metrics_lr_vcv_r5,
   metrics_lr_bootstrap,
