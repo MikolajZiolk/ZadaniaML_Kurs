@@ -149,6 +149,18 @@ final_mod <-
 
 #Dopasowanie ostatecznego modelu do danych uczących
 #i oszacowanie wydajności modelu
+final_fit <- 
+  final_mod |> 
+  last_fit(split = data_split)
+
+final_fit %>%
+  collect_metrics()
+
+final_fit |> 
+  collect_predictions() |> 
+  roc_curve(truth = ozone, .pred_Niskie) |> 
+  autoplot()
+
 
 
 #parsnip - model, rf, bez tuningu
