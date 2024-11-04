@@ -49,6 +49,7 @@ library(openair)
 library(DT)
 library(ranger)
 library(vip)
+library(yardstick)
 tidymodels_prefer()
 ```
 
@@ -172,7 +173,7 @@ tune_work  <-
 ### Statystyki oceny dokładnosci modelu 
 
 ```{r}
-set.seed(345)
+#| eval: false
 ex_metrics  <- 
   yardstick::metric_set(
     accuracy,
@@ -190,12 +191,55 @@ rf_tune_fit <-
 
 ```
 
+### Model RF bez tuningu
+
+```{r}
+#parsnip - model, rf, bez tuningu
+rf_mod <-
+  rand_forest() |> 
+  set_engine(engine = "ranger",
+            num.threads=parallel::detectCores() - 1) |> 
+  set_mode("classification")
+
+rf_workflow <-
+  workflow() |> 
+  add_model(rf_mod) |> 
+  add_recipe(oz_rec)
+```
+
+
+### Dopasownaie modelu
+
+```{r}
+#| eval: false
+#tune rf
+rf_fit_r5 <- 
+  rf_workflow |> 
+  fit_resamples(cv_folds_r5)
+
+```
+
+
+```{r}
+#| eval: false
+#| echo: false
+save(rf_fit_r5, rf_tune_fit, file="Exercise4_5.RData")
+
+```
+
+```{r}
+#| echo: false
+load("Exercise4_5.RData")
+```
+
 ### Metryki tune i resample
 
 ```{r}
 
 rf_tune_fit |> collect_metrics()
+```
 
+```{r}
 rf_tune_fit |> 
   collect_metrics() |> 
   mutate(mtry = factor(mtry)) |> 
@@ -299,40 +343,6 @@ pred_test <-
 pred_test
 ```
 
-### Model RF bez tuningu
-
-```{r}
-#parsnip - model, rf, bez tuningu
-rf_mod <-
-  rand_forest() |> 
-  set_engine(engine = "ranger",
-            num.threads=parallel::detectCores() - 1) |> 
-  set_mode("classification")
-
-rf_workflow <-
-  workflow() |> 
-  add_model(rf_mod) |> 
-  add_recipe(oz_rec)
-```
-
-### Dopasowanie resample
-
-```{r}
-#tune rf
-set.seed(456)
-rf_fit_rs <-
-  rf_workflow |> 
-  fit_resamples(cv_folds)
-
-rf_fit_bootstrap <- 
-  rf_workflow |>
-  fit_resamples(bootstrap_folds) 
-
-rf_fit_r5 <- 
-  rf_workflow |> 
-  fit_resamples(cv_folds_r5)
-
-```
 
 ### Metryki bez resample
 ```{r}
@@ -350,7 +360,6 @@ metrics_no_resample <- bind_rows(
 ### Metryki z resample
 
 ```{r}
-
 metrics_rf_vcv_r5 <- rf_fit_r5|> 
   collect_metrics() |> 
   filter(.metric == "accuracy" | .metric == "roc_auc") |>
