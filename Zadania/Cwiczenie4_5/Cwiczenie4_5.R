@@ -96,6 +96,7 @@ reg_grid |>
 reg_grid |> 
   count(min_n)
 
+
 ### Tune Workflow
 tune_work  <- 
   workflow() |> 
@@ -119,6 +120,10 @@ rf_tune_fit <-
             control = control_grid(save_pred = T),
             metrics = ex_metrics)
 rf_tune_fit
+
+
+
+save(rf_fit_r5, rf_tune_fit, file="Exercise4_5.RData")
 
 rf_tune_fit |> collect_metrics()
 
