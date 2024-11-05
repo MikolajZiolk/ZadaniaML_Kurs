@@ -55,10 +55,20 @@ data_split <-initial_split(air, prop = 0.75, strata = o3)
 train_data <- training(data_split)
 test_data <- testing(data_split)
 
-#zbiór walidacyjny i zbiór uczący
+#zbiór walidacyjny i zbiór uczący => bez resamplingu
 val_set <-
   validation_split(data = train_data,
                    prop = 3 / 4,
                    strata = o3) 
 
 val_set
+
+#Model regresji logistycznej, metodą glmnet
+lin_mod <-
+  linear_reg(penalty = tune(),
+               mixture = 1) |> #???? tune()??
+  #mixture = 1 oznacza, że model glmnet potencjalnie usunie nieistotne predyktory i wybierze prostszy model.
+  set_engine(engine = "glmnet",
+             num.threads = parallel::detectCores() - 1) |>
+  set_mode("regression")
+
