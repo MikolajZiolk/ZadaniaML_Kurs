@@ -49,10 +49,16 @@ air <- air |>
 # Sprawdzenie, ile obserwacji jest w każdej kategorii
 air |> count(wind_category)
 
+#Podział danych na zbiór treningowy i zbiór testowy
+set.seed(222)
+data_split <-initial_split(air, prop = 0.75, strata = o3)
+train_data <- training(data_split)
+test_data <- testing(data_split)
 
+#zbiór walidacyjny i zbiór uczący
+val_set <-
+  validation_split(data = train_data,
+                   prop = 3 / 4,
+                   strata = o3) 
 
-
-
-
-
-
+val_set
