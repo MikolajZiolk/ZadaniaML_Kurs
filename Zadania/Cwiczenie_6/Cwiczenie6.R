@@ -63,7 +63,7 @@ val_set <-
 
 val_set
 
-#Model regresji logistycznej, metodą glmnet
+#Model regresji liniowej, metodą glmnet
 lin_mod <-
   linear_reg(penalty = tune(),
                mixture = 1) |> #???? tune()??
@@ -71,4 +71,23 @@ lin_mod <-
   set_engine(engine = "glmnet",
              num.threads = parallel::detectCores() - 1) |>
   set_mode("regression")
+
+# Tworzenie recepturu dla lin_mod
+lin_recipe <-    
+  recipe(o3 ~ ., data = train_data) |>  
+  update_role(date, pm10, pm25, new_role = "ID") |> 
+  step_date(date, features = c("month")) |> #kolumna jakościowa
+  step_time(date, features = c("hour")) |>    
+  step_rm(date) |>    
+  step_dummy(all_nominal_predictors()) |>    
+  step_zv(all_predictors())
+
+lin_recipe |> 
+  prep() |>
+  bake(train_data) |> 
+  glimpse()
+
+
+
+
 
