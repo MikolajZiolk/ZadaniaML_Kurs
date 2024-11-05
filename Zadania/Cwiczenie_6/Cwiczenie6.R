@@ -67,7 +67,7 @@ val_set
 #Model regresji liniowej, metodą glmnet
 lin_mod <-
   linear_reg(penalty = tune(),
-               mixture = 1) |> #???? tune()??
+               mixture = tune()) |>
   #mixture = 1 oznacza, że model glmnet potencjalnie usunie nieistotne predyktory i wybierze prostszy model.
   set_engine(engine = "glmnet",
              num.threads = parallel::detectCores() - 1) |>
@@ -82,6 +82,7 @@ lin_recipe <-
   step_rm(date) |>    
   step_dummy(all_nominal_predictors()) |>    
   step_zv(all_predictors())
+
 
 lin_recipe |> 
   prep() |>
@@ -109,8 +110,28 @@ lin_res <-
     metrics = metric_set(mae)
   )
 
+#Wykaz kandydatów na najlepszy model
+top_lin_models <- 
+  lin_res |> 
+  show_best(metric="mae", n = Inf) |> 
+  arrange(penalty) |> 
+  mutate(mean = mean |> round(x = _, digits = 3))
 
+top_lin_models |> gt::gt()
 
+# Wybór najlepszych modeli
+lin_best <-
+  lin_res |>
+  select_best(metric="mae")
 
+lin_best
 
+#model ostateczny
+lin_best_mod <-
+  lin_workflow |>
+  finalize_workflow(lin_best)
+
+lin_fit <-
+  lin_best_mod |>
+  last_fit(split = data_split)
 
