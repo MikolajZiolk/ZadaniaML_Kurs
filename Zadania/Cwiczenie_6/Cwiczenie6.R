@@ -63,6 +63,7 @@ val_set <-
 
 val_set
 
+#####################LINEAR REGRESSION###########
 #Model regresji liniowej, metodą glmnet
 lin_mod <-
   linear_reg(penalty = tune(),
@@ -87,7 +88,11 @@ lin_recipe |>
   bake(train_data) |> 
   glimpse()
 
-
+# workflow dla lin_mod
+lr_workflow <-    
+  workflow() |>    
+  add_model(lin_mod) |>    
+  add_recipe(lin_recipe)
 
 
 
