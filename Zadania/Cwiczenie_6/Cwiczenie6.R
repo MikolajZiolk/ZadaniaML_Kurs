@@ -89,10 +89,28 @@ lin_recipe |>
   glimpse()
 
 # workflow dla lin_mod
-lr_workflow <-    
+lin_workflow <-    
   workflow() |>    
   add_model(lin_mod) |>    
   add_recipe(lin_recipe)
+
+# Siatka optymalizacji hipermaparametrów
+# automat 
+lin_grid <- grid_regular(penalty(),mixture(), levels = 5)  #5 wartosci kandydujących
+
+# Uczenie i optymalizacja modelu
+# Tune model dla linear 
+lin_res <-
+  lin_workflow |>
+  tune_grid(
+    resamples = val_set,
+    grid = lin_grid,
+    control = control_grid(save_pred = TRUE),
+    metrics = metric_set(mae)
+  )
+
+
+
 
 
 
