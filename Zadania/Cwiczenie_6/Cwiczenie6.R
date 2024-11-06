@@ -217,7 +217,14 @@ rf_fit |>
 
 #####################DRZEWO DECYZYJNE#######################
 
-
+dec_mod <- 
+  decision_tree(
+    cost_complexity = tune(), 
+    tree_depth = tune(),
+    min_n = tune()) |> 
+  set_engine("rpart") |> 
+  set_mode("regression")
+dec_mod
 
 
 
