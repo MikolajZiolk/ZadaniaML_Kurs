@@ -1,5 +1,74 @@
-#Cwiczenie 6
+---
+title: "Zadanie6"
+date: today
+author: "Mikołaj Ziółkowski"
+editor: visual
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    toc-title: Spis Treści
+    number-sections: true
+    number-depth: 3
+    embed-resources: true
+    html-math-method: katex
+    code-tools: true
+    code-block-bg: true
+    code-fold: true
+    code-summary: "Show and hide code"
+    link-external-icon: true
+    link-external-newwindow: true
+    smooth-scroll: true
+    self-contained: true
+    citation: true
+    theme: 
+        dark: solar
+        light: flatly
+    fontsize: 1.0em
+    linestretch: 1.3
+    fig-align: center
+execute: 
+  eval: true
+  echo: true
+  error: false
+  warning: false
+  output: true
+---
 
+# Zadanie 6
+
+## Przygotowanie danych i ich podział
+
+### Polecenie
+
+Na podstawie danych mydata (1 rok) zaproponuj model prognozowania poziomów stężeń O3 (modele regresji). Zastosuj trzy metody:
+
+- regresja liniowa prosta (glmnet),
+
+- drzewa decyzyjne (rpart)
+
+- las losowy (ranger).
+
+Najważniejsze punkty:
+
+- przekształć kierunek wiatru na zmienną kategoryczną, definiując 16 kierunków wiatru.
+
+- utwórz zestaw walidacyjny bez resamplingu,
+
+- utwórz receptury dla każdego modelu - sprawdź wymagania modeli,
+
+- przeprowadź optymalizację hiper-parametrów,
+
+- zbuduj ostateczny modele,
+
+- Sprawdź który model był najlepszy,
+
+- Najlepszą graficzną metodą porównania wyników oceny dokładności na zbiorze testowym jest wykres rozrzutu z linią modelu idealnego.
+
+### Potrzebne pakiety
+
+```{r}
 library(tidymodels) 
 library(skimr) 
 library(GGally)
@@ -14,22 +83,28 @@ library(ggthemes)
 library(purrr)
 library(vip)
 tidymodels_prefer()
+```
 
-# temat
-#przygotowanie danych
+### Przygotowanie danych
+
+```{r}
 air <- mydata |> 
   selectByDate(year = 2002) |> 
   na.omit()
 
-air |> glimpse() #sprawdzenie struktury
+air |> glimpse()
+```
+### Korelacja
 
-#korelacja między zmiennymi
+```{r}
 air[sample(1:nrow(air), size = 300, replace = F),] |> 
   ggpairs()
-#Występuje istotna korlacja pomiędzy O3 a pozostałymi zmiennymi
+```
+Występuje istotna korlacja pomiędzy O3 a pozostałymi zmiennymi.
 
+### Przekształcenie kierunków wiatru na zmienną kategoryczną, definiując 16 kierunków wiatru.
 
-
+```{r}
 # Tworzenie wektora z nazwami kierunków
 wind_directions <- c("N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", 
                      "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
@@ -46,25 +121,32 @@ air <- air |>
     )
   )
 
-# Sprawdzenie, ile obserwacji jest w każdej kategorii
 air |> count(wind_category)
+```
 
-#Podział danych na zbiór treningowy i zbiór testowy
+### Podział danych na zbiór treningowy i zbiór testowy
+
+```{r}
 set.seed(222)
 data_split <-initial_split(air, prop = 0.75, strata = o3)
 train_data <- training(data_split)
 test_data <- testing(data_split)
+```
 
-#zbiór walidacyjny i zbiór uczący => bez resamplingu
+### Zbiór walidacyjny
+
+```{r}
 val_set <-
   validation_split(data = train_data,
                    prop = 3 / 4,
                    strata = o3) 
 
-val_set
+```
 
-#####################LINEAR REGRESSION###########
-#Model regresji liniowej, metodą glmnet
+## Regresja liniowa prosta
+
+### Model regresji liniowej
+```{r}
 lin_mod <-
   linear_reg(penalty = tune(),
                mixture = tune()) |>
@@ -72,8 +154,10 @@ lin_mod <-
   set_engine(engine = "glmnet",
              num.threads = parallel::detectCores() - 1) |>
   set_mode("regression")
+```
 
-# Tworzenie recepturu dla lin_mod
+### Receptura lr
+```{r}
 lin_recipe <-    
   recipe(o3 ~ ., data = train_data) |>  
   update_role(date, pm10, pm25, new_role = "ID") |> 
@@ -88,20 +172,28 @@ lin_recipe |>
   prep() |>
   bake(train_data) |> 
   glimpse()
+```
+### Workflow lr
 
-# workflow dla lin_mod
+```{r}
 lin_workflow <-    
   workflow() |>    
   add_model(lin_mod) |>    
   add_recipe(lin_recipe)
 
-# Siatka optymalizacji hipermaparametrów
-# automat 
-lin_grid <- grid_regular(penalty(),mixture(), levels = 5)  #5 wartosci kandydujących
-lin_grid
+```
 
-# Uczenie i optymalizacja modelu
-# Tune model dla linear 
+### Siatka optymalizacji hipermaparametrów lr
+```{r}
+lin_grid <- grid_regular(penalty(),mixture(), levels = 5) 
+lin_grid
+```
+
+### Tune dla modelu
+
+Ucznie i optymalizacja modelu:
+
+```{r}
 lin_res <-
   lin_workflow |>
   tune_grid(
@@ -110,10 +202,9 @@ lin_res <-
     control = control_grid(save_pred = TRUE),
     metrics = metric_set(mae)
   )
-
-lin_res
-
-#Wykaz kandydatów na najlepszy model
+```
+### Wykaz kandydatów na najlepszy model
+```{r}
 top_lin_models <- 
   lin_res |> 
   show_best(metric="mae", n = Inf) |> 
@@ -121,15 +212,19 @@ top_lin_models <-
   mutate(mean = mean |> round(x = _, digits = 3))
 
 top_lin_models |> gt::gt()
+```
 
-# Wybór najlepszych modeli
+### Wybór najlepszego modelu
+```{r}
 lin_best <-
   lin_res |>
   select_best(metric="mae")
 
 lin_best
+```
 
-#model ostateczny
+### Model ostateczny i jego dopasowanie
+```{r}
 lin_best_mod <-
   lin_workflow |>
   finalize_workflow(lin_best)
@@ -137,13 +232,12 @@ lin_best_mod <-
 lin_fit <-
   lin_best_mod |>
   last_fit(split = data_split)
+```
 
-##########################las losowy, rf=>rand forest##################
-# liczba rdzeni na komputerze
-cores <- parallel::detectCores()
-cores #8 rdzeni
+## Las losowy
 
-# model rf
+### Model random forest
+```{r}
 rf_mod <-
   rand_forest(mtry = tune(),
               min_n = tune(),
@@ -152,8 +246,10 @@ rf_mod <-
              num.threads = parallel::detectCores() - 1,
              importance = "impurity") |>
   set_mode(mode = "regression")
+```
 
-# receptura rf
+### Receptura rf
+```{r}
 rf_recipe <- 
   recipe(o3 ~ ., data = train_data) |> 
   update_role(date, pm10, pm25, new_role = "ID") |>
@@ -166,13 +262,20 @@ rf_recipe |>
   prep() |>
   bake(train_data) |>
   glimpse()
+```
 
+### Workflow rf
+
+```{r}
 rf_workflow <- 
   workflow() |> 
   add_model(rf_mod) |> 
   add_recipe(rf_recipe)
+```
 
-# Siatka regularna  rf
+### Siatka regularna rf
+
+```{r}
 rf_grid <-
   grid_regular(
     mtry(range=c(1, 8)),
@@ -181,7 +284,11 @@ rf_grid <-
     levels = 5
   )
 
-# tune rf
+rf_grid
+```
+
+### Tune dla modelu rf
+```{r}
 rf_res <- 
   rf_workflow |> 
   tune_grid(resamples = val_set, 
@@ -189,8 +296,10 @@ rf_res <-
             control = control_grid(save_pred = T),
             metrics = metric_set(mae))
 rf_res
+```
 
-#Wykaz kandydatów na najlepszy model
+### Wykaz kandydatów na najlepszy model
+```{r}
 rf_top_models <-
   rf_res |>
   show_best(metric="mae", n = Inf) |>
@@ -198,16 +307,21 @@ rf_top_models <-
   mutate(mean = mean |> round(x = _, digits = 3))
 
 rf_top_models |> gt::gt()
+```
 
+### Wybór najlepszego modelu
+```{r}
 rf_res |> show_best(n = 5, metric="mae") #5 najlepszych wyników
 
-# Wybór najlepszego modelu
 rf_best <-
   rf_res |>
   select_best(metric="mae")
 
 rf_best
+```
 
+### Model ostateczny i jego dopasowanie
+```{r}
 #model ostateczny
 rf_best_mod <-
   rf_workflow |>
@@ -216,12 +330,13 @@ rf_best_mod <-
 rf_fit <-
   rf_best_mod |>
   last_fit(split = data_split)
+```
 
-rf_fit |> 
-  collect_metrics()
 
-#####################DRZEWO DECYZYJNE#######################
-#model decision tree
+## Drzewo decyzyjne
+
+### Model decision tree
+```{r}
 dec_mod <- 
   decision_tree(
     cost_complexity = tune(), 
@@ -230,8 +345,9 @@ dec_mod <-
   set_engine("rpart") |> 
   set_mode("regression")
 dec_mod
-
-# receptura 
+```
+### Recpetura dec
+```{r}
 dec_rec <-
   recipe(o3 ~ ., data = train_data) |>
   update_role(date, pm10, pm25, new_role = "ID") |>
@@ -244,21 +360,31 @@ dec_rec |>
   prep() |>
   bake(train_data) |>
   glimpse()
+```
 
-#workflow dla dec
+### Workflow dc
+
+```{r}
 dec_workflow <- 
   workflow() |> 
   add_model(dec_mod) |> 
   add_recipe(dec_rec)
+```
 
-#siatka dla dec
+
+### Siatka regularna
+
+```{r}
 dec_grid <- grid_regular(cost_complexity(), 
                        tree_depth(), 
                        min_n(),
                        levels = 5)
 dec_grid
 
-#optymalizacja tune
+```
+
+### Optymalizacja TUNE
+```{r}
 dec_fit_tree <-
   dec_workflow |>
   tune_grid(
@@ -267,11 +393,11 @@ dec_fit_tree <-
     control = control_grid(save_pred = T),
     metrics = metric_set(mae)
   )
+```
 
-dec_fit_tree |> collect_metrics()
 
-dec_fit_tree |> show_best(metric="mae")
-
+### Wykaz kandydatów na najlepszy model
+```{r}
 dec_top_models <-
   dec_fit_tree |>
   show_best(metric="mae", n = Inf) |>
@@ -279,13 +405,19 @@ dec_top_models <-
   mutate(mean = mean |> round(x = _, digits = 3))
 
 dec_top_models |> gt::gt()
+```
 
+### Wybór najlepszego modelu
+```{r}
 dec_best <-
   dec_fit_tree |>
   select_best(metric="mae")
 
 dec_best
+```
 
+### Ostateczny model i jego dopasowanie
+```{r}
 dec_best_mod <-
   dec_workflow |>
   finalize_workflow(dec_best)
@@ -293,12 +425,12 @@ dec_best_mod <-
 dec_final_fit <-
   dec_best_mod |>
   last_fit(split = data_split)
+```
 
-dec_final_fit |> 
-  collect_metrics()
+## Wizualizacja
 
-#######################WYKRESY DO MODELI###################
-#model linear regression
+### Wykres dla linear regression
+```{r}
 lin_fit |> 
   extract_fit_parsnip() |> 
   vip(num_features = 20) +
@@ -306,8 +438,12 @@ lin_fit |>
   scale_y_continuous(expand = c(0,0)) +
   geom_boxplot(color = "black", fill = "grey85") +
   ggdark::dark_theme_dark()
+```
 
-#MODEL Rand forest
+
+
+### Wykres dla rand forest
+```{r}
 rf_fit |> 
   extract_fit_parsnip() |> 
   vip(num_features = 20) +
@@ -316,7 +452,11 @@ rf_fit |>
   geom_boxplot(color = "black", fill = "grey85") +
   ggdark::dark_theme_dark()
 
-#model decision tree
+```
+
+### Wykres dla decision tree
+```{r}
+
 dec_final_fit |> 
 extract_fit_parsnip() |> 
   vip(num_features = 20) +
@@ -324,10 +464,11 @@ extract_fit_parsnip() |>
   scale_y_continuous(expand = c(0,0)) +
   geom_boxplot(color = "black", fill = "grey85") +
   ggdark::dark_theme_dark()
+```
 
+### Wykresu rozrzutu z linią idealną
 
-
-# Funkcja do generowania wykresu rozrzutu z linią idealną
+```{r}
 plot_scatter_with_ideal <- function(final_fit, model_name) {
   final_fit |> 
     collect_predictions() |> 
@@ -339,31 +480,44 @@ plot_scatter_with_ideal <- function(final_fit, model_name) {
          y = "Actual O3 Levels") +
     theme_minimal()
 }
+```
 
+```{r}
 # Wykresy dla poszczególnych modeli
 plot_scatter_with_ideal(lin_fit, "Linear Regression (GLMNet)")
 plot_scatter_with_ideal(rf_fit, "Random Forest (Ranger)")
 plot_scatter_with_ideal(dec_final_fit, "Decision Tree (RPart)")
+```
 
-################Sprawdzenie który model jest lepszy
+## Metryki
+
+### Zebranie metryk
+```{r}
 lin_metrics <- lin_fit |> collect_metrics()
 rf_metrics <- rf_fit |> collect_metrics()
 dec_metrics <- dec_final_fit |> collect_metrics()
+```
 
-# Połączenie metryk w jednej ramce danych z kolumną dla nazwy modelu
+
+### Połączenie metryk
+```{r}
 all_metrics <- bind_rows(
   lin_metrics |> mutate(Model = "Linear Regression (GLMNet)"),
   rf_metrics |> mutate(Model = "Random Forest (Ranger)"),
   dec_metrics |> mutate(Model = "Decision Tree (RPart)")
 )
-str(all_metrics)
-# Posortowanie wyników według MAE, aby znaleźć najlepszy model
-# Średnia MAE dla każdego modelu
+```
+
+### Posortowanie wyników według rmse
+
+```{r}
 all_metrics |> 
-  filter(.metric == "mae") |> 
+  filter(.metric == "rmse") |> 
   group_by(Model) |> 
-  summarize(mean_mae = mean(.estimate)) |> 
-  arrange(mean_mae)
+  summarize(mean_rmse = mean(.estimate)) |> 
+  arrange(mean_rmse)
+all_metrics
+```
 
-
+Model najlepszy to taki, który posiada najmniejszą wartość RMSE(błąd średniokwadratowy), a więc jest to model Lasu losowego RMSE = 3.03.
 
