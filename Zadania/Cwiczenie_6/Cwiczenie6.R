@@ -98,6 +98,7 @@ lin_workflow <-
 # Siatka optymalizacji hipermaparametrów
 # automat 
 lin_grid <- grid_regular(penalty(),mixture(), levels = 5)  #5 wartosci kandydujących
+lin_grid
 
 # Uczenie i optymalizacja modelu
 # Tune model dla linear 
@@ -109,6 +110,8 @@ lin_res <-
     control = control_grid(save_pred = TRUE),
     metrics = metric_set(mae)
   )
+
+lin_res
 
 #Wykaz kandydatów na najlepszy model
 top_lin_models <- 
@@ -134,4 +137,22 @@ lin_best_mod <-
 lin_fit <-
   lin_best_mod |>
   last_fit(split = data_split)
+
+##########################las losowy##################
+# liczba rdzeni na komputerze
+cores <- parallel::detectCores()
+cores #8 rdzeni
+
+# model rf
+rf_mod <-
+  rand_forest(mtry = tune(),
+              min_n = tune(),
+              trees = tune()) |>
+  set_engine(engine = "ranger",
+             num.threads = parallel::detectCores() - 1,
+             importance = "impurity") |>
+  set_mode(mode = "regression")
+
+
+
 
