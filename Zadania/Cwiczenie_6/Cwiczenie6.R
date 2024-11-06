@@ -268,10 +268,38 @@ dec_fit_tree <-
     metrics = metric_set(mae)
   )
 
-dec_fit_tree
+dec_fit_tree |> collect_metrics()
 
+dec_fit_tree |> show_best(metric="mae")
+
+dec_top_models <-
+  dec_fit_tree |>
+  show_best(metric="mae", n = Inf) |>
+  arrange(tree_depth) |>
+  mutate(mean = mean |> round(x = _, digits = 3))
+
+dec_top_models |> gt::gt()
+
+dec_best <-
+  dec_fit_tree |>
+  select_best(metric="mae")
+
+dec_best
+
+dec_best_mod <-
+  dec_workflow |>
+  finalize_workflow(dec_best)
+
+dec_final_fit <-
+  dec_best_mod |>
+  last_fit(split = data_split)
+
+dec_final_fit |> 
+  collect_metrics()
 
 #######################WYKRESY DO MODELI###################
+
+
 #MODEL Rand forest
 rf_fit |> 
   extract_fit_parsnip() |> 
