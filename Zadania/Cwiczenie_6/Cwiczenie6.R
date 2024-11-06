@@ -167,3 +167,27 @@ rf_workflow <-
   add_model(rf_mod) |> 
   add_recipe(rf_recipe)
 
+# Siatka regularna  rf
+rf_grid <-
+  grid_regular(
+    mtry(range=c(1, 8)),
+    trees(),
+    min_n(),
+    levels = 5
+  )
+
+# tune rf
+rf_res <- 
+  rf_workflow |> 
+  tune_grid(resamples = val_set, 
+            grid = rf_grid, 
+            control = control_grid(save_pred = T),
+            metrics = metric_set(mae))
+rf_res
+
+
+
+
+
+
+
