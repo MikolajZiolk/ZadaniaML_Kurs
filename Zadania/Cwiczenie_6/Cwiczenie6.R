@@ -324,3 +324,24 @@ extract_fit_parsnip() |>
   scale_y_continuous(expand = c(0,0)) +
   geom_boxplot(color = "black", fill = "grey85") +
   ggdark::dark_theme_dark()
+
+
+
+# Funkcja do generowania wykresu rozrzutu z linią idealną
+plot_scatter_with_ideal <- function(final_fit, model_name) {
+  final_fit |> 
+    collect_predictions() |> 
+    ggplot(aes(x = .pred, y = o3)) +
+    geom_point(alpha = 0.5, color = "blue") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(title = paste("Scatter plot with ideal line for", model_name),
+         x = "Predicted O3 Levels",
+         y = "Actual O3 Levels") +
+    theme_minimal()
+}
+
+# Wykresy dla poszczególnych modeli
+plot_scatter_with_ideal(lin_fit, "Linear Regression (GLMNet)")
+plot_scatter_with_ideal(rf_fit, "Random Forest (Ranger)")
+plot_scatter_with_ideal(dec_final_fit, "Decision Tree (RPart)")
+
