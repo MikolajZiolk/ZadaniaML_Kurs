@@ -138,7 +138,7 @@ lin_fit <-
   lin_best_mod |>
   last_fit(split = data_split)
 
-##########################las losowy##################
+##########################las losowy, rf=>rand forest##################
 # liczba rdzeni na komputerze
 cores <- parallel::detectCores()
 cores #8 rdzeni
@@ -153,6 +153,17 @@ rf_mod <-
              importance = "impurity") |>
   set_mode(mode = "regression")
 
+# receptura rf
+rf_recipe <- 
+  recipe(o3 ~ ., data = train_data) |> 
+  update_role(date, pm10, pm25, new_role = "ID") |>
+  step_date(date, features = c("month")) |> #kolumna jakościowa
+  step_time(date, features = c("hour")) |> 
+  step_rm(date) |> 
+  step_zv(all_predictors()) 
 
-
+rf_workflow <- 
+  workflow() |> 
+  add_model(rf_mod) |> 
+  add_recipe(rf_recipe)
 
