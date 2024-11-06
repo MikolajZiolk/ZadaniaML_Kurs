@@ -185,7 +185,23 @@ rf_res <-
             metrics = metric_set(mae))
 rf_res
 
+#Wykaz kandydatów na najlepszy model
+rf_top_models <-
+  rf_res |>
+  show_best(metric="mae", n = Inf) |>
+  arrange(trees) |>
+  mutate(mean = mean |> round(x = _, digits = 3))
 
+rf_top_models |> gt::gt()
+
+rf_res |> show_best(n = 5, metric="mae") #5 najlepszych wyników
+
+# Wybór najlepszego modelu
+rf_best <-
+  rf_res |>
+  select_best(metric="mae")
+
+rf_best
 
 
 
