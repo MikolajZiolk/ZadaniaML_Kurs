@@ -245,17 +245,31 @@ dec_rec |>
   bake(train_data) |>
   glimpse()
 
+#workflow dla dec
 dec_workflow <- 
   workflow() |> 
   add_model(dec_mod) |> 
   add_recipe(dec_rec)
 
+#siatka dla dec
 dec_grid <- grid_regular(cost_complexity(), 
                        tree_depth(), 
                        min_n(),
                        levels = 5)
-
 dec_grid
+
+#optymalizacja tune
+dec_fit_tree <-
+  dec_workflow |>
+  tune_grid(
+    resamples = val_set,
+    grid = dec_grid,
+    control = control_grid(save_pred = T),
+    metrics = metric_set(mae)
+  )
+
+dec_fit_tree
+
 
 #######################WYKRESY DO MODELI###################
 #MODEL Rand forest
