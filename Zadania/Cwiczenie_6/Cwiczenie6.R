@@ -162,6 +162,11 @@ rf_recipe <-
   step_rm(date) |> 
   step_zv(all_predictors()) 
 
+rf_recipe |>
+  prep() |>
+  bake(train_data) |>
+  glimpse()
+
 rf_workflow <- 
   workflow() |> 
   add_model(rf_mod) |> 
@@ -216,7 +221,7 @@ rf_fit |>
   collect_metrics()
 
 #####################DRZEWO DECYZYJNE#######################
-
+#model decision tree
 dec_mod <- 
   decision_tree(
     cost_complexity = tune(), 
@@ -226,7 +231,31 @@ dec_mod <-
   set_mode("regression")
 dec_mod
 
+# receptura 
+dec_rec <-
+  recipe(o3 ~ ., data = train_data) |>
+  update_role(date, pm10, pm25, new_role = "ID") |>
+  step_date(date, features = c("month")) |> 
+  step_time(date, features = c("hour")) |>
+  step_rm(date) |> 
+  step_zv(all_predictors()) 
 
+dec_rec |>
+  prep() |>
+  bake(train_data) |>
+  glimpse()
+
+dec_workflow <- 
+  workflow() |> 
+  add_model(dec_mod) |> 
+  add_recipe(dec_rec)
+
+dec_grid <- grid_regular(cost_complexity(), 
+                       tree_depth(), 
+                       min_n(),
+                       levels = 5)
+
+dec_grid
 
 #######################WYKRESY DO MODELI###################
 #MODEL Rand forest
