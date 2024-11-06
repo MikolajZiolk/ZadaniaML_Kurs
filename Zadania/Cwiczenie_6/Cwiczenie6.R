@@ -203,7 +203,11 @@ rf_best <-
 
 rf_best
 
+#model ostateczny
+rf_best_mod <-
+  rf_workflow |>
+  finalize_workflow(rf_best)
 
-
-
-
+rf_fit <-
+  rf_best_mod |>
+  last_fit(split = data_split)
