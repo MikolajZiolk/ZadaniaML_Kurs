@@ -298,11 +298,27 @@ dec_final_fit |>
   collect_metrics()
 
 #######################WYKRESY DO MODELI###################
-
+#model linear regression
+lin_fit |> 
+  extract_fit_parsnip() |> 
+  vip(num_features = 20) +
+  scale_x_discrete(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  geom_boxplot(color = "black", fill = "grey85") +
+  ggdark::dark_theme_dark()
 
 #MODEL Rand forest
 rf_fit |> 
   extract_fit_parsnip() |> 
+  vip(num_features = 20) +
+  scale_x_discrete(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  geom_boxplot(color = "black", fill = "grey85") +
+  ggdark::dark_theme_dark()
+
+#model decision tree
+dec_final_fit |> 
+extract_fit_parsnip() |> 
   vip(num_features = 20) +
   scale_x_discrete(expand = c(0,0)) +
   scale_y_continuous(expand = c(0,0)) +
