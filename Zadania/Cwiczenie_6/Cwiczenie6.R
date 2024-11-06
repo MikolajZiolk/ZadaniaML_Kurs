@@ -211,3 +211,22 @@ rf_best_mod <-
 rf_fit <-
   rf_best_mod |>
   last_fit(split = data_split)
+
+rf_fit |> 
+  collect_metrics()
+
+#####################DRZEWO DECYZYJNE#######################
+
+
+
+
+
+#######################WYKRESY DO MODELI###################
+#MODEL Rand forest
+rf_fit |> 
+  extract_fit_parsnip() |> 
+  vip(num_features = 20) +
+  scale_x_discrete(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  geom_boxplot(color = "black", fill = "grey85") +
+  ggdark::dark_theme_dark()
