@@ -98,6 +98,7 @@ lin_workflow <-
 # Siatka optymalizacji hipermaparametrów
 # automat 
 lin_grid <- grid_regular(penalty(),mixture(), levels = 5)  #5 wartosci kandydujących
+lin_grid
 
 # Uczenie i optymalizacja modelu
 # Tune model dla linear 
@@ -109,6 +110,8 @@ lin_res <-
     control = control_grid(save_pred = TRUE),
     metrics = metric_set(mae)
   )
+
+lin_res
 
 #Wykaz kandydatów na najlepszy model
 top_lin_models <- 
@@ -135,3 +138,189 @@ lin_fit <-
   lin_best_mod |>
   last_fit(split = data_split)
 
+##########################las losowy, rf=>rand forest##################
+# liczba rdzeni na komputerze
+cores <- parallel::detectCores()
+cores #8 rdzeni
+
+# model rf
+rf_mod <-
+  rand_forest(mtry = tune(),
+              min_n = tune(),
+              trees = tune()) |>
+  set_engine(engine = "ranger",
+             num.threads = parallel::detectCores() - 1,
+             importance = "impurity") |>
+  set_mode(mode = "regression")
+
+# receptura rf
+rf_recipe <- 
+  recipe(o3 ~ ., data = train_data) |> 
+  update_role(date, pm10, pm25, new_role = "ID") |>
+  step_date(date, features = c("month")) |> #kolumna jakościowa
+  step_time(date, features = c("hour")) |> 
+  step_rm(date) |> 
+  step_zv(all_predictors()) 
+
+rf_recipe |>
+  prep() |>
+  bake(train_data) |>
+  glimpse()
+
+rf_workflow <- 
+  workflow() |> 
+  add_model(rf_mod) |> 
+  add_recipe(rf_recipe)
+
+# Siatka regularna  rf
+rf_grid <-
+  grid_regular(
+    mtry(range=c(1, 8)),
+    trees(),
+    min_n(),
+    levels = 5
+  )
+
+# tune rf
+rf_res <- 
+  rf_workflow |> 
+  tune_grid(resamples = val_set, 
+            grid = rf_grid, 
+            control = control_grid(save_pred = T),
+            metrics = metric_set(mae))
+rf_res
+
+#Wykaz kandydatów na najlepszy model
+rf_top_models <-
+  rf_res |>
+  show_best(metric="mae", n = Inf) |>
+  arrange(trees) |>
+  mutate(mean = mean |> round(x = _, digits = 3))
+
+rf_top_models |> gt::gt()
+
+rf_res |> show_best(n = 5, metric="mae") #5 najlepszych wyników
+
+# Wybór najlepszego modelu
+rf_best <-
+  rf_res |>
+  select_best(metric="mae")
+
+rf_best
+
+#model ostateczny
+rf_best_mod <-
+  rf_workflow |>
+  finalize_workflow(rf_best)
+
+rf_fit <-
+  rf_best_mod |>
+  last_fit(split = data_split)
+
+rf_fit |> 
+  collect_metrics()
+
+#####################DRZEWO DECYZYJNE#######################
+#model decision tree
+dec_mod <- 
+  decision_tree(
+    cost_complexity = tune(), 
+    tree_depth = tune(),
+    min_n = tune()) |> 
+  set_engine("rpart") |> 
+  set_mode("regression")
+dec_mod
+
+# receptura 
+dec_rec <-
+  recipe(o3 ~ ., data = train_data) |>
+  update_role(date, pm10, pm25, new_role = "ID") |>
+  step_date(date, features = c("month")) |> 
+  step_time(date, features = c("hour")) |>
+  step_rm(date) |> 
+  step_zv(all_predictors()) 
+
+dec_rec |>
+  prep() |>
+  bake(train_data) |>
+  glimpse()
+
+#workflow dla dec
+dec_workflow <- 
+  workflow() |> 
+  add_model(dec_mod) |> 
+  add_recipe(dec_rec)
+
+#siatka dla dec
+dec_grid <- grid_regular(cost_complexity(), 
+                       tree_depth(), 
+                       min_n(),
+                       levels = 5)
+dec_grid
+
+#optymalizacja tune
+dec_fit_tree <-
+  dec_workflow |>
+  tune_grid(
+    resamples = val_set,
+    grid = dec_grid,
+    control = control_grid(save_pred = T),
+    metrics = metric_set(mae)
+  )
+
+dec_fit_tree |> collect_metrics()
+
+dec_fit_tree |> show_best(metric="mae")
+
+dec_top_models <-
+  dec_fit_tree |>
+  show_best(metric="mae", n = Inf) |>
+  arrange(tree_depth) |>
+  mutate(mean = mean |> round(x = _, digits = 3))
+
+dec_top_models |> gt::gt()
+
+dec_best <-
+  dec_fit_tree |>
+  select_best(metric="mae")
+
+dec_best
+
+dec_best_mod <-
+  dec_workflow |>
+  finalize_workflow(dec_best)
+
+dec_final_fit <-
+  dec_best_mod |>
+  last_fit(split = data_split)
+
+dec_final_fit |> 
+  collect_metrics()
+
+#######################WYKRESY DO MODELI###################
+#model linear regression
+lin_fit |> 
+  extract_fit_parsnip() |> 
+  vip(num_features = 20) +
+  scale_x_discrete(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  geom_boxplot(color = "black", fill = "grey85") +
+  ggdark::dark_theme_dark()
+
+#MODEL Rand forest
+rf_fit |> 
+  extract_fit_parsnip() |> 
+  vip(num_features = 20) +
+  scale_x_discrete(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  geom_boxplot(color = "black", fill = "grey85") +
+  ggdark::dark_theme_dark()
+
+#model decision tree
+dec_final_fit |> 
+extract_fit_parsnip() |> 
+  vip(num_features = 20) +
+  scale_x_discrete(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  geom_boxplot(color = "black", fill = "grey85") +
+  ggdark::dark_theme_dark()
